@@ -2,7 +2,7 @@
 The Horse Discord bot
 
 ## Horse Features:
-- General ressponses to messages
+- General responses to messages
 - Dice roller
 - Gambling
 - A "score" system
