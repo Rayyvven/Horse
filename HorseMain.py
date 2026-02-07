@@ -1,5 +1,5 @@
 # Imports
-
+import wikipedia
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -7,21 +7,32 @@ import logging
 from dotenv import load_dotenv
 import os
 import random
-import asyncio
 import time
 import datetime
 from zoneinfo import ZoneInfo
 from googletrans import Translator
 from mcstatus import JavaServer
-import requests
 import aiohttp
+import wikipedia
 import yt_dlp
+from difflib import get_close_matches
+
+
 # Variables
+Gifs = [
+    'https://tenor.com/view/horse-horse-reaction-reaction-elite-dangerous-borann-boys-gif-25049405',
+    'https://tenor.com/view/horse-side-eye-gif-2138439955218797613',
+    'https://tenor.com/view/horse-gif-16989653505354355713',
+    'https://tenor.com/view/horse-wine-horse-with-wine-gif-13140298122387270411',
+    'https://tenor.com/view/grass-horse-horse-sitting-gif-18247540597407868249',
+    'https://tenor.com/view/horse-silly-gif-12886436098092344563',
+    'https://tenor.com/view/uh-gif-230597167926076170',
+    'https://tenor.com/view/sad-horse-horse-sad-rain-horse-sad-horse-on-the-rain-gif-2339772143737630615'
+]
 
 _playing_guilds = set()
 translator = Translator()
 NoE = False
-Confessions = "confessions.txt"
 quotes = []
 floobert = True
 WordsOfWisdom = []
@@ -39,9 +50,15 @@ Neighs = [
     " Neigh :D",
     " Neigh >:("
 ]
+### Here is the channel blacklist. I'm going to make this into a .txt file shortly.
+BlackListedChannelsFile = 'BlacklistedChannels.txt'
 BlacklistedChannels = [
-    '1411858430100246568',
 ]
+with open(BlackListedChannelsFile, 'r') as file:
+    for line in file:
+        BlacklistedChannels.append(line.strip())
+        print(BlacklistedChannels) ### Debug
+
 handler = logging.FileHandler(filename='discordlog.log', encoding='utf-8', mode='w')
 c = 0
 ch = ''
@@ -50,6 +67,9 @@ AnnounceMode = False # Used to make announcements on bot launch
 HorseHitListFile = 'HorseHitList.txt'
 FuckerCentral = 0 # Don't mind the name
 yea = [
+    "𝓝𝓰𝓱...𝓘 𝓷𝓮𝓮𝓭 𝓽𝓸 𝓫𝓻𝓮𝓮𝓭 𝔂𝓸𝓾...",
+    f"{random.randint(1,1000)} billion to Israel",
+    "Aaaaand it's all over the screen",
     "A barbershop haircut that costs a quarter",
     "I'm gonna hold you hand when I say this...||Yes. Absolutely.||",
     "You're fucking brilliant, absolutely.",
@@ -83,7 +103,14 @@ yea = [
     "Fuck you. I'm not answering that. Instead, I'll ask you this: If you were 3 inches deep in Donald Trump and Elon Musk was 3 inches deep in you, which way are you moving?",
     "No",
     "You're a fucking dumbass.",
-    "I'm a horse. I can't answer that."
+    "I'm a horse. I can't answer that.",
+    "Fuh Naw :broken_heart: :wilted_rose:",
+    "Take what you just said, write it down, and shove it up your ass.",
+    "?",
+    "J",
+    "That's so bad I might recreate 9/11",
+    f"Is {random.randint(1,1000)} stories high enough?",
+    "Alright, that's it. Back to bed with you."
     ]
 m = False
 # Setup
@@ -95,7 +122,7 @@ with open('Quotes.txt', 'r') as file:
         try:
             WordsOfWisdom.append(line)
             IDs += 1
-            print("Got", line) # For Debug
+            #print("Got", line) # For Debug
         except:
             print(f"Error at line {IDs}")
 print(f"Successfully loaded quotes at ID {IDs}")
@@ -115,7 +142,7 @@ async def on_ready():
         print("Bot is done loading!")
     except Exception as e:
         print(f"Error syncing commands: {e}")
-    await bot.change_presence(activity=discord.Game(name="Alexander come back to sleep"))
+    await bot.change_presence(activity=discord.Game(name="Ngl, I'm kinda gay. Neigh."))
     if AnnounceMode == True:
         text = str(input("> "))
         for guild in bot.guilds:
@@ -123,7 +150,7 @@ async def on_ready():
             for channel in guild.text_channels:
                 if channel.permissions_for(guild.me).send_messages:
                     print(f"Checking {guild.name} #{channel.name}")
-                    if channel.name.lower() == "general":
+                    if channel.name.lower() == "general" or channel.name.lower() == "chat":
                         try:
                             await channel.send(text)
                             print(f"Sent wisdom to {guild.name} in #{channel.name}")
@@ -138,48 +165,101 @@ async def on_ready():
 
 
 
-@bot.command()
-async def join(ctx):
-    if ctx.author.voice:
-        channel = ctx.author.voice.channel
-        if ctx.voice_client:
-            await ctx.voice_client.move_to(channel)
+# Basic, safe typo checker using English word list
+with open("words_alpha.txt", "r") as f:
+    VALID_WORDS = set(w.strip().lower() for w in f)
+
+def find_typos(text, cutoff=0.8):
+    words = [w.lower() for w in text.split()]
+    typos = []
+
+    for word in words:
+        if word.isalpha() and word not in VALID_WORDS:
+            matches = get_close_matches(word, VALID_WORDS, n=1, cutoff=cutoff)
+            if matches:
+                typos.append((word, matches[0]))
+
+    return typos
+
+
+@bot.tree.command(name="join", description="Joins a VC")
+async def join(interaction: discord.Interaction):
+
+    if interaction.user.voice:
+        channel = interaction.user.voice.channel
+
+        if interaction.guild.voice_client:
+            await interaction.guild.voice_client.move_to(channel)
         else:
             try:
                 await channel.connect()
+                await interaction.response.send_message(":)")
             except Exception as e:
-                await ctx.send(f"Voice error: {e}")
+                await interaction.response.send_message(f"Voice error: {e}")
     else:
-        await ctx.send("You're not in a voice channel.")
-@bot.command()
-async def play(ctx, url):
-    voice = ctx.voice_client
+        await interaction.response.send_message("You're not in a voice channel.")
 
-    if not voice:
-        await ctx.invoke(bot.get_command("join"))
-        voice = ctx.voice_client
+@bot.tree.command(name="play")
+async def play(interaction: discord.Interaction, url: str):
+    print("PLAY COMMAND HIT")
 
-    ydl_opts = {
+    try:
+        await interaction.response.defer()
+
+        print("Deferred")
+
+        voice = interaction.guild.voice_client
+
+        if not voice:
+            if interaction.user.voice:
+                channel = interaction.user.voice.channel
+                voice = await channel.connect()
+                print("Connected VC")
+            else:
+                await interaction.followup.send("Join VC")
+                return
+
+        import yt_dlp
+        print("yt-dlp imported")
+
+        ydl_opts = {
         "format": "bestaudio/best",
-        "quiet": True,
-        "noplaylist": True
-    }
+        "js_runtimes": {
+            "node": {}
+        }
+}
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
-        source_url = info["url"]
 
-    ffmpeg_opts = {
-        'options': '-vn'
-    }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            print("Extracted")
+            source = info["url"]
 
-    voice.play(discord.FFmpegPCMAudio(source_url, **ffmpeg_opts))
+        print("Starting FFmpeg")
 
-@bot.command()
-async def leave(ctx):
-    if ctx.voice_client:
-        await ctx.voice_client.disconnect()
+        voice.play(discord.FFmpegPCMAudio(
+            source,
+            before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
+            options="-vn"
+        ))
 
+        await interaction.followup.send(f"Playing {url} :3")
+
+    except Exception as e:
+        print("CRASH:", e)
+
+
+
+
+
+@bot.tree.command(name="leave", description="Leave VC (why are you looking at this?)")
+async def leave(interaction: discord.Interaction):
+    if interaction.user.voice:
+        try:
+            await interaction.response.send_message(":(")
+            await interaction.guild.voice_client.disconnect()
+        except Exception as e:
+            print("Voice error:", e)
 
 
 # Taking Control of the Bot for fun :)
@@ -208,11 +288,12 @@ async def send_PSA():
     
     ctx = 1148608661577547894
     channel = bot.get_channel(ctx)
-    await channel.send("Good evening all. I am horse. Please go to bed. Sleeping is quite important. \n Some pro tips from my buddy Paul: \n"
-    "- Turn your phone off, or use a night light. \n"
-    "- Listen to some calming music or white noise. \n"
-    "- Be gay. \n"
-    "- Good night. Honk mimimimi to you all."
+    await channel.send("Good evening all. I am not a horse. Please do not go to bed. Sleeping is not important. \n Some pro tips from my buddy Paul: \n"
+    "- Turn your phone on, and crank that brightness up. \n"
+    "- Listen to some absolutely metal music or orange noise. \n"
+    "- Definitely do not run over Jackson Maclure with a car. For no reason. At 132 mph. \n"
+    "- Be straight. \n"
+    "- Fuck you. Kill yourself."
     )
 
 # Quotes
@@ -301,6 +382,55 @@ async def update_horse_hitlist(author_name: str, filepath: str, change: int = 1,
         print(f"EVERYTHING FAILED????????????????????????????????????????????? {e}")
         return None
 
+ZodiacSigns = [
+    'Aquarius',
+    'Pisces',
+    'Aries',
+    'Taurus',
+    'Gemini',
+    'Cancer',
+    'Leo',
+    'Virgo',
+    'Libra',
+    'Scorpio',
+    'Sagittarius',
+    'Capricorn'
+]
+
+@bot.tree.command(name="compatiblity", description="Check two users romantic compatibility!")
+@app_commands.describe(userone="First user", usertwo="Second user", signone="First user's zodiac sign", signtwo="Second user's zodiac sign")
+@app_commands.choices(signone=[app_commands.Choice(name=z, value=z) for z in ZodiacSigns], signtwo=[app_commands.Choice(name=z, value=z) for z in ZodiacSigns])
+async def compatibility(interaction: discord.Interaction, userone: discord.User, usertwo: discord.User, signone: str, signtwo: str):
+    with open('Compatibility.txt', 'r') as file:
+        for line in file:
+            if f"{userone.name}" in line and f"{usertwo.name}" in line:
+                await interaction.response.send_message(f"The compatibility between {userone.mention} and {usertwo.mention} is... **{line.split('= ')[1].strip()}**. Neigh neigh.")
+                return
+            else:
+                pass
+    Compat = 0
+    print(f"Checking compatibility between {userone} and {usertwo}")
+    print(f"{signone} {signtwo}")
+    await interaction.response.send_message(f"Calculating compatibility between {userone.mention} ({signone}) and {usertwo.mention} ({signtwo})...")
+    for letter in signone + signtwo:
+        Compat += 1
+    print(Compat)
+    userscoreone = await get_horse_hitlist(userone.name, HorseHitListFile)
+    userscoretwo = await get_horse_hitlist(usertwo.name, HorseHitListFile)
+    if userscoreone is None or userscoretwo is None:
+        print("Error getting user scores for compatibility.")
+    else:
+        Compat += (userscoreone - userscoretwo)
+    if Compat < 0:
+        Compat *= -1
+    while Compat > 100:
+        Compat = Compat / 2
+    with open('Compatibility.txt', 'a') as file:
+        file.write(f"{userone.name} ({signone}) + {usertwo.name} ({signtwo}) = {int(Compat)}%\n")
+        print("Written to file successfully!")
+    await interaction.followup.send(f"The compatibility between {userone.mention} and {usertwo.mention} is... **{int(Compat)}%**. Neigh neigh.")
+    
+
 @bot.tree.command(name="roll", description="Roll a dice")
 @app_commands.describe(sides="how many sides should it be")
 async def roll(interaction: discord.Interaction, sides: int):
@@ -309,6 +439,25 @@ async def roll(interaction: discord.Interaction, sides: int):
         await interaction.response.send_message("no.")
     else:    
         await interaction.response.send_message(f"You rolled a d{sides}, and lowk got {random.randint(1,sides)}. Good job or some shit. Neigh neigh")
+
+@bot.tree.command(name="blacklist", description="Blacklists the channel you are currently in from Horse's view.")
+async def blacklist(interaction: discord.Interaction, channel: discord.TextChannel):
+    global BlacklistedChannels
+    print("ran /blacklist")
+    if str(channel.id) in BlacklistedChannels:
+        await interaction.response.send_message("Woah, easy there partner. Don't want to blacklist this channel twice now do we? That's it, I'm nuking Venezuela")
+    else:
+        with open(BlackListedChannelsFile, 'a') as file:
+            file.write(f"{channel.id} \n")
+            print(f"written {channel.id} to file.")
+        await interaction.response.send_message("**This channel is now blacklisted.**")
+        BlacklistedChannels = []
+        with open(BlackListedChannelsFile, 'r') as file:
+            for line in file:
+                BlacklistedChannels.append(line.strip())
+                # print(BlacklistedChannels) ### Debug
+
+
 # Beautiful code if I do say so myself (this is awful)
 @bot.tree.command(name="status", description="Change the horses status!")
 @app_commands.describe(status="What should it be?")
@@ -320,21 +469,21 @@ async def status(interaction: discord.Interaction, status: str):
 @bot.tree.command(name="confess", description="Confess your sins to Horse, and be judged.")
 async def confess(interaction: discord.Interaction, confession: str):
     print("confessed")
-    with open(Confessions, 'a') as file:
-        print("writing...")
-        file.write(f"{confession} \n")
-        file.write(f"{interaction.user.name} \n") # Removes the anonimity of it all :grin:
     print("running...")
-    await interaction.response.send_message("Your confession has been received. Please note that, while obviously this is a confession, you should NOT trust a horse like me with this info. I still show who wrote what in the file I've created, and while I will never look at it, is a horse REALLY trustworthy...? Ehh fuck it, neigh neigh or something.", ephemeral=True)
+    await interaction.response.send_message(f"Your confession has been sent to {interaction.channel.name}!.", ephemeral=True)
     await runconfession(confession, interaction)
 
 async def runconfession(confession, interaction):
     try:
         print("sending response...")
-        await interaction.channel.send(f"""An anonymous user has confessed...**'{confession}'**.
-If you believe the user should be punished for this, *a future update will allow you to recreate 9/11.*""")
-    except:
-        print("An error has occured.")
+        embed = discord.Embed(
+            title=f"Anonymous Confession (#{random.randint(1,100000)})",
+            description=f"\"{confession}\"",
+            color=random.randint(1,100000)
+        )
+        await interaction.channel.send(embed=embed)
+    except Exception as e:
+        print(f"An error has occured! {e}")
 
 @bot.tree.command(name="horse", description="?")
 async def horse(interaction: discord.Interaction, password: str):
@@ -346,35 +495,10 @@ async def horse(interaction: discord.Interaction, password: str):
         time.sleep(2)
         await interaction.response.send_message("Incorrect.")
 
-@bot.tree.context_menu(name="Smite")  # Right-click → Apps → Smite
-async def smite(interaction: discord.Interaction, message: discord.Message):
-    ConfessionList = []
-    try:
-        with open (Confessions, 'r') as file:
-            for line in file:
-                ConfessionList.append(line)
-    except:
-        print("Error getting confessions into list.")
-
-    if message.author.name == "Horse" and "An anonymous user has confessed..." in message.content:
-        await interaction.response.send_message("You are smiting them down. Once 5 people all smite them down...I will reveal the author of this quote. Neigh.")
-        # Pop the message out
-        x = message.content.strip()
-        print(x)
-        x = x.replace("An anonymous user has confessed...**'", "")
-        print(x)
-        x = x.replace("'**.If you believe the user should be punished for this, *a future update will allow you to smite them down.*", "")
-        print(x)
-        if x in ConfessionList:
-            print("Go fuck yourself")
-    else:
-        print("Go fuck yourself")
-        await interaction.response.send_message("Go fuck yourself")
-
 @bot.tree.command(name="version", description="Displays the current bot version")
 async def version(interaction: discord.Interaction):
     print("Ran command /version")
-    await interaction.response.send_message("Good day, horse enthusiast. My current version is 1.14. New hidden responses.")
+    await interaction.response.send_message("Good day, horse enthusiast. My current version is 26.2.2. New hidden response, new confession message to match the already existing confessions bot. Neigh.")
 
 @bot.tree.command(name="quote", description="Add a quote to the bot!")
 @app_commands.describe(quote="Type the quote here, or a number to fetch a quote.", user="Whose quote is this?")
@@ -383,6 +507,7 @@ async def quote(interaction: discord.Interaction, quote: str, user: discord.User
     global m
     global quotes
     await interaction.response.send_message("Hol up a sec chat")
+
     with open("Quotes.txt", "r") as file:
         quotes = []
         for line in file:
@@ -489,8 +614,8 @@ async def e(interaction: discord.Interaction, letter: str = None):
 @bot.tree.command(name="server", description="Checks to see if the server's online.")
 async def server(interaction: discord.Interaction):
     print("Checking...")
-    server_ip = "featured-commons.gl.joinmc.link"
-    server_port = 4573
+    server_ip = "98.216.20.149"
+    server_port = 25565
 
     try:
         server = JavaServer.lookup(f"{server_ip}:{server_port}")
@@ -501,6 +626,14 @@ async def server(interaction: discord.Interaction):
         print("Server is offline or unreachable.")
         await interaction.response.send_message("Server is offline or unreachable.")
 
+@bot.tree.command(name="pickupline", description="Submit a pickup line (or leave blank for info)")
+async def pickupline(interaction: discord.Interaction, line: str = None):
+    if line is None:
+        await interaction.response.send_message("*One of the creators of Horse has made a deal with themself that if they do not lock in (that is, talk to a girl) before February 14th 2026, then they will have to send the top-rated pickup line to their love interest. Neigh.*")
+    else:
+        with open("PickupLines.txt", "a") as file:
+            file.write(f"{line}\n")
+            await interaction.response.send_message(f"*{interaction.user}* Submitted the pickup line '{line}'")
 async def get_synonyms(word):
     url = "https://api.datamuse.com/words"
     
@@ -528,52 +661,86 @@ async def on_message(message):
     global syns
     global c
     global ch
-    bingbong = message.content.lower().strip("'")
-    if random.randint(1, 5) == 1:
-        print("Help")
-        try:
-            s = bingbong.strip()
-            s = bingbong.split()
-            syns = await get_synonyms(random.choice(s))
-            print(random.choice(syns)) if syns else print("no synonyms found for word")
-            await message.channel.send(f"**{random.choice(syns)}**.")
-        except Exception as e:
-            print(f"lmao {e}")
-
-    if trans == True and not message.author.name == "Horse":
-        print("oop")
-        await message.delete()
-        bingbong = message.content.lower().strip("'")
-        result = await translator.translate(bingbong, dest='es')
-        print(result.text)
-        result = await translator.translate(result.text, dest='af')
-        print(result.text)
-        result = await translator.translate(result.text, dest='de')
-        print(result.text)
-        result = await translator.translate(result.text, dest='ta')
-        print(result.text)
-        # result = await translator.translate(result.text, dest='vi')
-        print(result.text)
-        # result = await translator.translate(result.text, dest='zu')
-        print(result.text)
-        # result = await translator.translate(result.text, dest='yi')
-        print(result.text)
-        result = await translator.translate(result.text, dest='en')
-        print(result.text)
-        await message.channel.send(f"{message.author.name}: {result.text}")
-
-    Mockery = []
-    if random.randint(1, 150) == 1 and message.author.name != "Horse":
-        print("ARE YOU MOCKING ME????")
-        for letter in bingbong:
-            if random.randint(1,2) == 1:
-                Mockery.append(letter.lower())
-            else:
-                Mockery.append(letter.capitalize())
-        thing = ''.join(Mockery)
-        print(thing)
-        await message.channel.send(f"{thing}")
     if str(message.channel.id) not in BlacklistedChannels:
+        bingbong = message.content.lower().strip("'")
+        
+        # Typo detection
+        result = find_typos(message.content)
+        print(result)
+        if result:
+            corrections = ", ".join([f"'{w}' → '{c}'" for w, c in result])
+            try:
+                if random.randint(1,100) != 1: # 1 in 100
+                    await message.channel.send("Fuck you.")
+                else:
+                    if random.randint(1,5) != 5: # 1 in 500
+                        await message.channel.send("*Super fuck you.*")
+                    else:
+                        if random.randint(1,5) != 5: # 1 in 2,500
+                            await message.channel.send("**Ultra Fuck you.**")
+                        else:
+                            if random.randint(1,5) != 5: # 1 in 12,500
+                                await message.channel.send("***LEGENDARY FUCK YOU!***")
+                            else:
+                                await message.channel.send("# ***MYTHIC FUCK YOU!***") 
+
+            except:
+                pass
+
+        if random.randint(1, 25) == 1:
+            print("fetching wiki...")
+            try:
+                summary = wikipedia.summary(bingbong, sentences=random.randint(1, 5))
+                print(summary)
+                await message.channel.send(summary)
+            except:
+                print("No Wiki found :(")
+
+        if random.randint(1, 10) == 1:
+            print("Help")
+            try:
+                s = bingbong.strip()
+                s = bingbong.split()
+                syns = await get_synonyms(random.choice(s))
+                print(random.choice(syns)) if syns else print("no synonyms found for word")
+                await message.channel.send(f"**{random.choice(syns)}**.")
+            except Exception as e:
+                print(f"lmao {e}")
+
+        if trans == True and not message.author.name == "Horse":
+            print("oop")
+            await message.delete()
+            bingbong = message.content.lower().strip("'")
+            result = await translator.translate(bingbong, dest='es')
+            print(result.text)
+            result = await translator.translate(result.text, dest='af')
+            print(result.text)
+            result = await translator.translate(result.text, dest='de')
+            print(result.text)
+            result = await translator.translate(result.text, dest='ta')
+            print(result.text)
+            # result = await translator.translate(result.text, dest='vi')
+            print(result.text)
+            # result = await translator.translate(result.text, dest='zu')
+            print(result.text)
+            # result = await translator.translate(result.text, dest='yi')
+            print(result.text)
+            result = await translator.translate(result.text, dest='en')
+            print(result.text)
+            await message.channel.send(f"{message.author.name}: {result.text}")
+
+        Mockery = []
+        if random.randint(1, 150) == 1 and message.author.name != "Horse":
+            print("ARE YOU MOCKING ME????")
+            for letter in bingbong:
+                if random.randint(1,2) == 1:
+                    Mockery.append(letter.lower())
+                else:
+                    Mockery.append(letter.capitalize())
+            thing = ''.join(Mockery)
+            print(thing)
+            await message.channel.send(f"{thing}")
+        
         if NoE and BlockedLetter in bingbong:
             print("E")
             try:
@@ -584,7 +751,7 @@ async def on_message(message):
             ch = ''
             c = 0
         if message.author.name == "cometvgc":
-            if random.randint(1, 100) == 1:
+            if random.randint(1, 50) == 1:
                 await message.channel.send("Omg transgender here")
                 await update_horse_hitlist(message.author.name, HorseHitListFile, change=1)
                 print("Ruby")
@@ -603,9 +770,9 @@ async def on_message(message):
                 except discord.errors.Forbidden:
                     print("can't vro")
                     pass
-        if random.randint(1, 150) == 1:
+        if random.randint(1, 75) == 1:
             try: 
-                await message.channel.send("https://tenor.com/view/horse-horse-reaction-reaction-elite-dangerous-borann-boys-gif-25049405")
+                await message.channel.send(random.choice(Gifs))
                 print(":33")
                 await update_horse_hitlist(message.author.name, HorseHitListFile, change=25)
             except discord.errors.Forbidden:
@@ -629,6 +796,21 @@ async def on_message(message):
             while random.randint(1,25) != 25:
                 ans += random.choice(Neighs)
             await message.channel.send(ans)
+        elif "<@1403849240073211995>" in bingbong:
+            pingresponse = [
+                "Tf you want",
+                "Can a horse like me get some sleep bro? Sybau",
+                "You called?",
+                "yep that's me",
+                "I'm jorking it gimme a sec",
+                "If it's not related to Paul McCartney, don't ping me.", ### Contributed by Rae
+                "Imagine how sad your life must be to ping a fucking horse",
+                "Mgmmhm~",
+                "Neigh",
+                "shut the fuck up I'm busy busting", ### Contributed by Dahl
+            ]
+            
+            await message.channel.send(random.choice(pingresponse))
         elif "horse" in bingbong and "?" in bingbong:
             await message.channel.send(random.choice(yea))
         elif "how many" in bingbong or "how much" in bingbong or ("what's" in bingbong and "+" in bingbong):
@@ -640,6 +822,12 @@ async def on_message(message):
             await message.channel.send("*you're")
         elif "you're" in bingbong and random.randint(1,2) == 1:
             await message.channel.send("*your")
+        elif "there" in bingbong and random.randint(1,2) == 1:
+            await message.channel.send("*their")
+        elif "their" in bingbong and random.randint(1,2) == 1:
+            await message.channel.send("*they're")
+        elif "they're" in bingbong and random.randint(1,2) == 1:
+            await message.channel.send("*there")
         elif "i could eat a horse" in bingbong:
             await message.channel.send("There's no fucking way you're THAT hungry.")
             await update_horse_hitlist(message.author.name, HorseHitListFile, change=-1)
@@ -743,7 +931,7 @@ async def on_message(message):
             await message.channel.send(":(")
             await update_horse_hitlist(message.author.name, HorseHitListFile, change=-2)
         elif "now has" in bingbong and "swears" in bingbong:
-            goog = random.randint(1,5)
+            goog = random.randint(1,6)
             if goog == 1:
                 await message.channel.send("Fuck you Swear Jar.")
             elif goog == 2:
@@ -754,6 +942,8 @@ async def on_message(message):
                 await message.channel.send("Swear Jar I swear to fucking god.")
             elif goog == 5:
                 await message.channel.send("Fuck off Swear Jar.")
+            elif goog == 6:
+                await message.channel.send("Y'know, Swear Jar, you're not half bad. What do you say, wanna get freaky?")
             await update_horse_hitlist(message.author.name, HorseHitListFile, change=-1)
         elif ("horse" in bingbong) and ("he" in bingbong or "his" in bingbong) and not ("she" in bingbong or "hers" in bingbong):
             await message.channel.send("Hey I'm a woman btw do you mind")
@@ -802,7 +992,7 @@ async def on_message(message):
             await message.channel.send("Why are you afraid? Do not be scared, my child...")
 
     else:
-        print("Blacklisted")
+        print("Blacklisted!")
     await bot.process_commands(message)
 # React Role Message
 reaction_message_id = 1411870382952157314  
