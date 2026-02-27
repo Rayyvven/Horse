@@ -312,7 +312,7 @@ async def send_PSA():
     await channel.send("Good evening all. I am not a horse. Please do not go to bed. Sleeping is not important. \n Some pro tips from my buddy Paul: \n"
     "- Turn your phone on, and crank that brightness up. \n"
     "- Listen to some absolutely metal music or orange noise. \n"
-    f"- Definitely do not run over Toblerone with a car. For no reason. At {random.randint(100, 1000)} mph. \n"
+    f"- Definitely do not run over Azaria Lane with a car. For no reason. At {random.randint(100, 1000)} mph. \n"
     "- Be straight. \n"
     "- Fuck you. Kill yourself."
     )
@@ -519,7 +519,7 @@ async def horse(interaction: discord.Interaction, password: str):
 @bot.tree.command(name="version", description="Displays the current bot version")
 async def version(interaction: discord.Interaction):
     print("Ran command /version")
-    await interaction.response.send_message("Good day, horse enthusiast. My current version is 26.2.5. New responses to the Swear Jar bot, bug fixes, performance improvements, and deletion of unneeded features. Neigh.")
+    await interaction.response.send_message("Good day, horse enthusiast. My current version is 26.2.5a. Critical bug fix grahhhhhhhhhhhhhh. Neigh.")
 
 @bot.tree.command(name="quote", description="Add a quote to the bot!")
 @app_commands.describe(quote="Type the quote here, or a number to fetch a quote.")
@@ -748,6 +748,8 @@ async def on_message(message):
     global c
     global ch
     if str(message.channel.id) not in BlacklistedChannels:
+        if message.author == bot.user:
+            return
         bingbong = message.content.lower().strip("'")
         
         # Typo detection
@@ -781,7 +783,6 @@ async def on_message(message):
                 await message.channel.send(summary)
             except:
                 print("No Wiki found :(")
-
         if random.randint(1, 10) == 1:
             print("Help")
             try:
@@ -1242,4 +1243,3 @@ async def on_raw_reaction_remove(payload):
 
 
 bot.run(token, log_handler=handler, log_level=logging.DEBUG)
-
