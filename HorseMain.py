@@ -312,7 +312,7 @@ async def send_PSA():
     await channel.send("Good evening all. I am not a horse. Please do not go to bed. Sleeping is not important. \n Some pro tips from my buddy Paul: \n"
     "- Turn your phone on, and crank that brightness up. \n"
     "- Listen to some absolutely metal music or orange noise. \n"
-    f"- Definitely do not run over Azaria Lane with a car. For no reason. At {random.randint(100, 1000)} mph. \n"
+    f"- Definitely do not run over Toblerone with a car. For no reason. At {random.randint(100, 1000)} mph. \n"
     "- Be straight. \n"
     "- Fuck you. Kill yourself."
     )
@@ -1242,3 +1242,4 @@ async def on_raw_reaction_remove(payload):
 
 
 bot.run(token, log_handler=handler, log_level=logging.DEBUG)
+
