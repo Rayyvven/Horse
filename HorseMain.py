@@ -19,6 +19,8 @@ from difflib import get_close_matches
 import json
 import os
 import secrets
+import ddgs
+
 
 ID_FILE = "anon_messages.json"
 
@@ -270,8 +272,34 @@ async def play(interaction: discord.Interaction, url: str):
         print("CRASH:", e)
 
 
-
-
+async def lowkjssearchgoogleorsmttwinidk(thing):
+    print("searching for", thing)
+    try:
+        results = list(ddgs.DDGS().text(thing, max_results=1))
+        if results:
+            result = results[0]
+            title = result.get('title', 'No title')
+            body = result.get('body', 'No description')
+            link = result.get('href', '')
+            
+            message = f"{title}\n{body}"
+            if link:
+                message += f"\n{link}"
+                return message
+            else:
+                messsage = None
+                return message
+    except Exception as e:
+        print("Search error:", e)
+@bot.tree.command(name="google", description="Literally just searches google")
+@app_commands.describe(thing="What do you want to search for?")
+async def google(interaction: discord.Interaction, thing: str):
+    print("searching for", thing)
+    result = await lowkjssearchgoogleorsmttwinidk(thing)
+    if result is not None:
+        await interaction.response.send_message(f"Here's the answer to your incredibly wise question: **{result}**")
+    else:
+        await interaction.response.send_message("Fuck off. I couldn't research that. Please think of something actually intelligent. ")
 
 @bot.tree.command(name="leave", description="Leave VC (why are you looking at this?)")
 async def leave(interaction: discord.Interaction):
@@ -519,7 +547,7 @@ async def horse(interaction: discord.Interaction, password: str):
 @bot.tree.command(name="version", description="Displays the current bot version")
 async def version(interaction: discord.Interaction):
     print("Ran command /version")
-    await interaction.response.send_message("Good day, horse enthusiast. My current version is 26.2.5a. Critical bug fix grahhhhhhhhhhhhhh. Neigh.")
+    await interaction.response.send_message("Good day, horse enthusiast. My current version is 26.2.6. Added /search and the ability for Horse to randomly 'answer' your questions. This may be very, very broken. Neigh.")
 
 @bot.tree.command(name="quote", description="Add a quote to the bot!")
 @app_commands.describe(quote="Type the quote here, or a number to fetch a quote.")
@@ -902,12 +930,26 @@ async def on_message(message):
             
             await message.channel.send(random.choice(pingresponse))
         elif "horse" in bingbong and "?" in bingbong:
-            await message.channel.send(random.choice(yea))
+            if random.randint(1,2) == 1:
+                await message.channel.send(random.choice(yea))
+            else:
+                result = await lowkjssearchgoogleorsmttwinidk(bingbong)
+                if result is not None:
+                    await message.channel.send(f"Here's the answer to your incredibly wise question: **{result}**")
         elif "how many" in bingbong or "how much" in bingbong or ("what's" in bingbong and "+" in bingbong):
-            await message.channel.send(f"Probably like... {random.randint(1,10)}")
+            if random.randint(1,2) == 1:
+                await message.channel.send(f"Probably like... {random.randint(1,10)}")
+            else:
+                result = await lowkjssearchgoogleorsmttwinidk(bingbong)
+                if result is not None:
+                    await message.channel.send(f"Here's the answer to your incredibly wise question: **{result}**")
         elif "?" in bingbong and not "how many" in bingbong or "how much" in bingbong or "+" in bingbong:
             if random.randint(1, 2) == 1:
                 await message.channel.send(random.choice(yea))
+            else:
+                result = await lowkjssearchgoogleorsmttwinidk(bingbong)
+                if result is not None:
+                    await message.channel.send(f"Here's the answer to your incredibly wise question: **{result}**")
         elif "your" in bingbong and random.randint(1,2) == 1:
             await message.channel.send("*you're")
         elif "you're" in bingbong and random.randint(1,2) == 1:
