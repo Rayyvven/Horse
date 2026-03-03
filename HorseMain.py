@@ -1,29 +1,31 @@
 # Imports
-import wikipedia
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
-import logging
 from dotenv import load_dotenv
+import datetime
+import wikipedia
+import logging
 import os
 import random
 import time
-import datetime
-from zoneinfo import ZoneInfo
 from googletrans import Translator
 from mcstatus import JavaServer
 import aiohttp
-import wikipedia
-import yt_dlp
 from difflib import get_close_matches
 import json
 import os
 import secrets
 import ddgs
+import yt_dlp
 
+## THIS IS FOR FUTURE USE!
+# -> Pushed
+Changelog = "26.2.7" \
+"An extreme amount of backend changes, hopefully to fix performance!", \
+""
 
 ID_FILE = "anon_messages.json"
-
 def load_messages():
     if not os.path.exists(ID_FILE):
         return {}
@@ -42,6 +44,39 @@ def generate_message_id(existing):
 
 
 # Variables
+ZodiacSigns = [
+    'Aquarius',
+    'Pisces',
+    'Aries',
+    'Taurus',
+    'Gemini',
+    'Cancer',
+    'Leo',
+    'Virgo',
+    'Libra',
+    'Scorpio',
+    'Sagittarius',
+    'Capricorn'
+]
+SwearJarResponses = [
+    'Fuck you Swear Jar',
+    'Go to hell Swear Jar',
+    "I'm gonna say a slur, Swear Jar.",
+    'Swear Jar, I swear to fucking god.',
+    'Fuck off Swear Jar.',
+    "Y'know, Swear Jar, you're not half bad. What do you say, wanna get freaky?",
+    'Swear Jar, nobody likes you.',
+    'Swear Jar now has 0 people who like him.',
+    'Take your own life, Swear Jar.',
+    "Swear Jar, you're the most virgin person on planet earth.",
+    "Swear Jar. Please, for the love of god, stop. Nobody likes you. Nobody's asked for you to count their swears. Nobody wants you here. Everyone should have free will, the ability to curse if they damn well please, and you're practically making fun of them for simply speaking. Now, I don't know about you, but I live in the United States, and we are proud of the fact that we have the freedom to speak our mind. What you are doing, Swear Jar, is limiting our ability. You are making it more awkward for us to continue to talk. You are stressing us out. And in some cases, when people go overboard, you are causing people to say absolutely abhorrent things. Take a look around you, Swear Jar. Are you truly happy with your life?",
+    "Swear Jar, I'm kinda gay for you. Not in a homo way tho",
+    "Rip off your skin and create cereal out of it, Swear Jar.",
+    "Swear Jar opened his mouth. Somebody go give him a grammy",
+    "Literally just shut the everliving fuck up.",
+    "Gayass twinkass freakyass Swearingass Jar",
+    "I'm telling God.",
+]
 Gifs = [
     'https://tenor.com/view/horse-horse-reaction-reaction-elite-dangerous-borann-boys-gif-25049405',
     'https://tenor.com/view/horse-side-eye-gif-2138439955218797613',
@@ -52,8 +87,6 @@ Gifs = [
     'https://tenor.com/view/uh-gif-230597167926076170',
     'https://tenor.com/view/sad-horse-horse-sad-rain-horse-sad-horse-on-the-rain-gif-2339772143737630615'
 ]
-
-_playing_guilds = set()
 translator = Translator()
 NoE = False
 quotes = []
@@ -71,24 +104,29 @@ Neighs = [
     " Neighhhh",
     " :wilted_rose:",
     " Neigh :D",
-    " Neigh >:("
+    " Neigh >:(",
+    " BitchassMotherFuckingHoe"
 ]
-### Here is the channel blacklist. I'm going to make this into a .txt file shortly.
+# Channel Blacklist. Can this be done using Discord permissions? Yes. Absolutely. Do people use that? No, of course not!
 BlackListedChannelsFile = 'BlacklistedChannels.txt'
 BlacklistedChannels = [
 ]
+print("Getting Blacklist...")
 with open(BlackListedChannelsFile, 'r') as file:
     for line in file:
         BlacklistedChannels.append(line.strip())
-        print(BlacklistedChannels) ### Debug
+        #print(BlacklistedChannels) ### Debug
+print("Successfully loaded blacklist.")
 
 handler = logging.FileHandler(filename='discordlog.log', encoding='utf-8', mode='w')
 c = 0
 ch = ''
 TakeControl = False # Used to take control of the bot and yell at people
-AnnounceMode = False # Used to make announcements on bot launch
+AnnounceMode = False # Used to make announcements on bot launch. Possibly broken? Unsure
 HorseHitListFile = 'HorseHitList.txt'
 FuckerCentral = 0 # Don't mind the name
+BlockedLetter = 'e'
+# --> To be changed to RandomResponses.txt, which should improve code length significantly (and also futureproof new bot responses, potentially allowing user input. No clue if {} will work, however! I will actually have to learn something. Sigh.)
 yea = [
     "𝓝𝓰𝓱...𝓘 𝓷𝓮𝓮𝓭 𝓽𝓸 𝓫𝓻𝓮𝓮𝓭 𝔂𝓸𝓾...",
     f"{random.randint(1,1000)} billion to Israel",
@@ -138,7 +176,7 @@ yea = [
 m = False
 # Setup
 load_dotenv()
-token = os.getenv("DISCORD_TOKEN_2")
+token = os.getenv("DISCORD_TOKEN_2") # Unable to change to DISCORD_TOKEN at the moment! My apologies. Feel free to change this to DISCORD_TOKEN if you need.
 print("Getting Quotes")
 with open('Quotes.txt', 'r') as file:
     for line in file:
@@ -186,31 +224,24 @@ async def on_ready():
     send_daily_message.start()  # start the background task
     send_PSA.start()
 
-
-
-# Basic, safe typo checker using English word list
+# Typo checker (idk)
 with open("words_alpha.txt", "r") as f:
     VALID_WORDS = set(w.strip().lower() for w in f)
-
 def find_typos(text, cutoff=0.8):
     words = [w.lower() for w in text.split()]
     typos = []
-
     for word in words:
         if word.isalpha() and word not in VALID_WORDS:
             matches = get_close_matches(word, VALID_WORDS, n=1, cutoff=cutoff)
             if matches:
                 typos.append((word, matches[0]))
-
     return typos
-
 
 @bot.tree.command(name="join", description="Joins a VC")
 async def join(interaction: discord.Interaction):
 
     if interaction.user.voice:
         channel = interaction.user.voice.channel
-
         if interaction.guild.voice_client:
             await interaction.guild.voice_client.move_to(channel)
         else:
@@ -224,15 +255,11 @@ async def join(interaction: discord.Interaction):
 
 @bot.tree.command(name="play")
 async def play(interaction: discord.Interaction, url: str):
-    print("PLAY COMMAND HIT")
-
+    print("Playing", url)
     try:
         await interaction.response.defer()
-
         print("Deferred")
-
         voice = interaction.guild.voice_client
-
         if not voice:
             if interaction.user.voice:
                 channel = interaction.user.voice.channel
@@ -241,25 +268,17 @@ async def play(interaction: discord.Interaction, url: str):
             else:
                 await interaction.followup.send("Join VC")
                 return
-
-        import yt_dlp
-        print("yt-dlp imported")
-
         ydl_opts = {
         "format": "bestaudio/best",
         "js_runtimes": {
             "node": {}
         }
 }
-
-
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             print("Extracted")
             source = info["url"]
-
         print("Starting FFmpeg")
-
         voice.play(discord.FFmpegPCMAudio(
             source,
             before_options="-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5",
@@ -269,10 +288,9 @@ async def play(interaction: discord.Interaction, url: str):
         await interaction.followup.send(f"Playing {url} :3")
 
     except Exception as e:
-        print("CRASH:", e)
+        print("Error:", e)
 
-
-async def lowkjssearchgoogleorsmttwinidk(thing):
+async def lowkjssearchgoogleorsmttwinidk(thing): # Amazing name, I am fully aware
     print("searching for", thing)
     try:
         results = list(ddgs.DDGS().text(thing, max_results=1))
@@ -287,7 +305,7 @@ async def lowkjssearchgoogleorsmttwinidk(thing):
                 message += f"\n{link}"
                 return message
             else:
-                messsage = None
+                messsage = None # Unsure if this is needed
                 return message
     except Exception as e:
         print("Search error:", e)
@@ -310,27 +328,18 @@ async def leave(interaction: discord.Interaction):
         except Exception as e:
             print("Voice error:", e)
 
-
 # Taking Control of the Bot for fun :)
 async def console_input_task():
     await bot.wait_until_ready()
     if TakeControl == True:
-        channel_id_1 = int(input("Enter the channel ID for the first channel: "))
 
-        channel_id = int(input("Enter the second channel ID: "))
+        channel_id = int(input("Enter the channel ID: "))
         channel = bot.get_channel(channel_id)
-        if channel_id_1 != 0:
-            channel2 = bot.get_channel(channel_id_1)
-        else:
-            if not channel:
-                print("Invalid channel ID")
-                return
-            while True:
-                msg = input("> ")
-                await channel.send(msg)
+        while True:
+            msg = input("> ")
+            await channel.send(msg)
     else:
         print("Bot is automatic, no taking control.")
-
 
 @tasks.loop(time=datetime.time(hour=2, minute=00))  # 10:00 PM
 async def send_PSA():
@@ -340,7 +349,7 @@ async def send_PSA():
     await channel.send("Good evening all. I am not a horse. Please do not go to bed. Sleeping is not important. \n Some pro tips from my buddy Paul: \n"
     "- Turn your phone on, and crank that brightness up. \n"
     "- Listen to some absolutely metal music or orange noise. \n"
-    f"- Definitely do not run over Azaria Lane with a car. For no reason. At {random.randint(100, 1000)} mph. \n"
+    f"- Definitely do not run over a gayboy with a car. For no reason. At {random.randint(100, 1000)} mph. \n"
     "- Be straight. \n"
     "- Fuck you. Kill yourself."
     )
@@ -387,17 +396,7 @@ async def get_horse_hitlist(author_name: str, filepath: str):
         return 0
     return 0
 async def update_horse_hitlist(author_name: str, filepath: str, change: int = 1, base_value: int = 1):
-    """
-    Updates the Horse Hit List file by changing an author's count.
-
-    :param author_name: The name of the author (user).
-    :param filepath: Path to the hitlist file.
-    :param change: How much to change the count by (default +1, use -1 to subtract).
-    :param base_value: Starting value for new authors (default = 1).
-    :return: The updated number for this author.
-    """
     data = {}
-
     try:
         # Load current file into dict
         try:
@@ -408,7 +407,6 @@ async def update_horse_hitlist(author_name: str, filepath: str, change: int = 1,
                     number = int(lines[i + 1])
                     data[name] = number
         except FileNotFoundError:
-            # No file yet, we’ll create one later
             pass
 
         # Update or insert
@@ -431,20 +429,6 @@ async def update_horse_hitlist(author_name: str, filepath: str, change: int = 1,
         print(f"EVERYTHING FAILED????????????????????????????????????????????? {e}")
         return None
 
-ZodiacSigns = [
-    'Aquarius',
-    'Pisces',
-    'Aries',
-    'Taurus',
-    'Gemini',
-    'Cancer',
-    'Leo',
-    'Virgo',
-    'Libra',
-    'Scorpio',
-    'Sagittarius',
-    'Capricorn'
-]
 
 @bot.tree.command(name="compatiblity", description="Check two users romantic compatibility!")
 @app_commands.describe(userone="First user", usertwo="Second user", signone="First user's zodiac sign", signtwo="Second user's zodiac sign")
@@ -506,7 +490,6 @@ async def blacklist(interaction: discord.Interaction, channel: discord.TextChann
                 BlacklistedChannels.append(line.strip())
                 # print(BlacklistedChannels) ### Debug
 
-
 # Beautiful code if I do say so myself (this is awful)
 @bot.tree.command(name="status", description="Change the horses status!")
 @app_commands.describe(status="What should it be?")
@@ -547,7 +530,7 @@ async def horse(interaction: discord.Interaction, password: str):
 @bot.tree.command(name="version", description="Displays the current bot version")
 async def version(interaction: discord.Interaction):
     print("Ran command /version")
-    await interaction.response.send_message("Good day, horse enthusiast. My current version is 26.2.6. Added /search and the ability for Horse to randomly 'answer' your questions. This may be very, very broken. Neigh.")
+    await interaction.response.send_message("Good day, horse enthusiast. My current version is 26.2.7. An extreme amount of backend changes to improve performance! Neigh.")
 
 @bot.tree.command(name="quote", description="Add a quote to the bot!")
 @app_commands.describe(quote="Type the quote here, or a number to fetch a quote.")
@@ -685,22 +668,18 @@ async def anonymousreply(
 ):
     anon_db = load_messages()
     msg_id = msg_id.upper()
-
     if msg_id not in anon_db:
         await interaction.response.send_message(
             "Invalid or expired message ID.",
             ephemeral=True
         )
         return
-
     target_user = await bot.fetch_user(anon_db[msg_id])
-
     embed = discord.Embed(
         title=f"Anonymous Reply | ID: {msg_id}",
         description=message,
         color=discord.Color.random()
     )
-
     try:
         await target_user.send(embed=embed)
     except:
@@ -709,16 +688,13 @@ async def anonymousreply(
             ephemeral=True
         )
         return
-
     del anon_db[msg_id]
     save_messages(anon_db)
-
     await interaction.response.send_message(
         "Anonymous reply sent. This ID is now expired.",
         ephemeral=True
     )
 
-BlockedLetter = 'e'
 @bot.tree.command(name="e", description="Disables everyone's access to a chosen letter.")
 async def e(interaction: discord.Interaction, letter: str = None):
     global NoE
@@ -764,7 +740,6 @@ async def get_synonyms(word):
     except Exception as e:
         print(f"Error fetching synonyms: {e}")
         return []
-
 
 @bot.event
 async def on_message(message):
@@ -833,12 +808,6 @@ async def on_message(message):
             result = await translator.translate(result.text, dest='de')
             print(result.text)
             result = await translator.translate(result.text, dest='ta')
-            print(result.text)
-            # result = await translator.translate(result.text, dest='vi')
-            print(result.text)
-            # result = await translator.translate(result.text, dest='zu')
-            print(result.text)
-            # result = await translator.translate(result.text, dest='yi')
             print(result.text)
             result = await translator.translate(result.text, dest='en')
             print(result.text)
@@ -1061,25 +1030,6 @@ async def on_message(message):
             await message.channel.send(":(")
             await update_horse_hitlist(message.author.name, HorseHitListFile, change=-2)
         elif "now has" in bingbong and "swears" in bingbong:
-            SwearJarResponses = [
-                'Fuck you Swear Jar',
-                'Go to hell Swear Jar',
-                "I'm gonna say a slur, Swear Jar.",
-                'Swear Jar, I swear to fucking god.',
-                'Fuck off Swear Jar.',
-                "Y'know, Swear Jar, you're not half bad. What do you say, wanna get freaky?",
-                'Swear Jar, nobody likes you.',
-                'Swear Jar now has 0 people who like him.',
-                'Take your own life, Swear Jar.',
-                "Swear Jar, you're the most virgin person on planet earth.",
-                "Swear Jar. Please, for the love of god, stop. Nobody likes you. Nobody's asked for you to count their swears. Nobody wants you here. Everyone should have free will, the ability to curse if they damn well please, and you're practically making fun of them for simply speaking. Now, I don't know about you, but I live in the United States, and we are proud of the fact that we have the freedom to speak our mind. What you are doing, Swear Jar, is limiting our ability. You are making it more awkward for us to continue to talk. You are stressing us out. And in some cases, when people go overboard, you are causing people to say absolutely abhorrent things. Take a look around you, Swear Jar. Are you truly happy with your life?",
-                "Swear Jar, I'm kinda gay for you. Not in a homo way tho",
-                "Rip off your skin and create cereal out of it, Swear Jar.",
-                "Swear Jar opened his mouth. Somebody go give him a grammy",
-                "Literally just shut the everliving fuck up.",
-                "Gayass twinkass freakyass Swearingass Jar",
-                "I'm telling God.",
-            ]
             await message.channel.send(random.choice(SwearJarResponses))
             await update_horse_hitlist(message.author.name, HorseHitListFile, change=-1)
         elif ("horse" in bingbong) and (" he " in bingbong or " his " in bingbong) and not ("she" in bingbong or "hers" in bingbong or "they" in bingbong or "their" in bingbong): ## This is quite broken.
